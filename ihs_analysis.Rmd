@@ -1,0 +1,43 @@
+---
+title: "ihs"
+author: "Murray Cadzow"
+date: "13/03/2015"
+output: html_document
+---
+
+```{r, fig.height=9, fig.width=12}
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(rehh)
+library(qqman)
+
+POP=""
+TD=data.frame()
+s=data.frame()
+make_graph=function(ihs,s){
+  ggplot(data = ihs, aes(x=POSITION, y=iHS), ylim=c(min(ihs$iHS -0.5), max(ihs$iHS + 0.5)))  + geom_point(shape = 16, colour= alpha("black", 1/5)) + facet_wrap(~CHR, scales = "free_x")  + geom_hline(aes(yintercept= q1, colour ="quantile"), data=s,)  + geom_hline(aes(yintercept= q2, colour ="quantile"), data=s)  +geom_hline(aes(yintercept= m, colour="mean"), data=s) + scale_colour_manual("",breaks=c("mean","quantile"),values=c("blue","red")) + scale_x_continuous( xlab("Chromosome Position (Mbp)")) + ylab("iHS") + ggtitle(paste0(POP," iHS by Chromosome")) + theme( plot.background= element_rect(colour="black",fill=NA), legend.position= c(0.75, 0.12)) + theme_bw()
+}
+setwd("~/MurrayXsan/Bioinformatics/working_dir/extract/ihh_ihs/")
+
+
+for( POP in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
+  print(POP)
+  
+  ihh=data.frame()
+  for( i in 1:22){
+    if(file.exists(file = paste0(POP,"chr",i,".ihh"))){
+      ihh=rbind(ihh,read.table(file = paste0(POP,"chr",i,".ihh"), header=TRUE))
+      }
+    }
+  ihs = ihh2ihs(ihh)
+  ihs = ihs$res.ihs
+  #print(names(ihs))
+  #print(head(ihs))
+  manhattan(x = ihs[!is.na(ihs$iHS),], chr = "CHR", bp = "POSITION", p = "Pvalue")
+  s = ihs %>% group_by(CHROM) %>% summarise(m=mean(iHS), sd(iHS), min(iHS), max(iHS), q1 = quantile(iHS, 0.01), q2 = quantile(iHS, 0.99))
+  print(as.data.frame(s))
+  #plot(make_graph(TD,s))
+  }
+
+```
