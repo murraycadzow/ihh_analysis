@@ -5,3 +5,95 @@ date: "18/03/2015"
 output: html_document
 ---
 
+
+```{r, fig.height=9, fig.width=12}
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(rehh)
+library(qqman)
+library(knitr)
+opts_knit$set(root.dir="/run/user//1001//gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/ihh_ihs/")
+#setwd("/run/user//1001//gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/ihh_ihs/")
+
+
+rsb=data.frame()
+s=data.frame()
+make_graph=function(rsb,i){
+  #ihs=subset(rsb, POP1 == rsb$POP2)
+  #ggplot(data = ihs, aes(x=POSITION, y=iHS), ylim=c(min(ihs$iHS -0.5), max(ihs$iHS + 0.5)))  + geom_point(shape = 16, colour= alpha("black", 1/5)) + facet_wrap(~CHR, scales = "free_x")  + geom_hline(aes(yintercept= q1, colour ="quantile"), data=s,)  + geom_hline(aes(yintercept= q2, colour ="quantile"), data=s)  +geom_hline(aes(yintercept= m, colour="mean"), data=s) + scale_colour_manual("",breaks=c("mean","quantile"),values=c("blue","red")) + scale_x_continuous( xlab("Chromosome Position (Mbp)")) + ylab("iHS") + ggtitle(paste0(POP," iHS by Chromosome")) + theme( plot.background= element_rect(colour="black",fill=NA), legend.position= c(0.75, 0.12)) + theme_bw()
+p = ggplot(data = rsb, aes(x=POSITION, y=Std_iHH), ylim=c(min(rsb$Std_iHH -0.5), max(rsb$Std_iHH + 0.5)))  + geom_point(shape = 16, colour= alpha("black", 1/5)) + facet_grid(POP2~POP1) + geom_hline(aes(yintercept= -3.29, colour ="Threshold"))  + geom_hline(aes(yintercept= 3.29, colour ="Threshold"))  + scale_colour_manual("",breaks=c("Threshold","PPARGC1A Rsb","PPARGC1A iHS"),values=c(alpha("cyan",1/5), alpha("red",1/5),"blue")) + xlab(paste0("Chromosome ", i, " Position (Mbp)")) + ylab("Rsb/iHS") + ggtitle("Rsb and iHS (Genetic)") #+geom_point(data=ihs, aes(y = Std_iHH, x=POSITION,colour="PPARGC1A iHS"))
+}
+#setwd("~/MurrayXsan/Bioinformatics/working_dir/extract/ihh_ihs/")
+
+
+get_rsb = function(pop1, pop2, chr ){
+	if(pop1 != pop2){
+  combined= merge(x=read.table(paste0(pop1,"chr",chr,".ihh")), y=read.table(paste0(pop2,"chr",chr,".ihh")), by="POSITION")
+  a= ies2rsb(combined[,c("CHR.x","POSITION","FREQ_a.x","IHHa.x","IHHd.x","IES.x")], combined[,c("CHR.y","POSITION","FREQ_a.y","IHHa.y","IHHd.y","IES.y")],
+             popname1=pop1, popname2=pop2, method="bilateral")
+  b=a$res.rsb[!(is.na(a$res.rsb[3])),]
+  b$POP1= as.factor(pop1)
+  b$POP2= as.factor(pop2)
+  b$Test = as.factor("Rsb")
+  names(b)=c("CHR","POSITION","Std_iHH","Pvalue", "POP1","POP2","Test")
+	} else{
+	b= get_ihs(pop1, chr)
+	}
+  return(b)
+
+}
+
+get_ihs = function(pop1,chr){
+  a = ihh2ihs(read.table(paste0(pop1,"chr",chr,".ihh")))
+  b=a$res.ihs[!(is.na(a$res.ihs[3])),]
+  b$POP1= as.factor(pop1)
+  b$POP2= as.factor(pop1)
+  b$Test = as.factor("iHS")
+  names(b)= c("CHR","POSITION","Std_iHH","Pvalue","POP1","POP2","Test")
+  return(b)
+}
+
+#rsb=rbind(rsb, get_rsb(pop1=POP1, pop2=POP2))
+```
+
+```{r axiom}
+for( i in 1:22){
+	POP1 <- "AXIOM"
+  rsb=data.frame()
+	for( POP2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
+  		print(POP2)  
+    		if(file.exists(file = paste0(POP1,"chr",i,".ihh")) & file.exists(file = paste0(POP2,"chr",i,".ihh"))){
+      			rsb=rbind(rsb, get_rsb(pop1=POP1, pop2=POP2, chr=i))
+      		}
+	}
+  s = rsb %>% group_by(POP1, POP2) %>% summarise(m=mean(Std_iHH), sd(Std_iHH), min(Std_iHH), max(Std_iHH), q1 = quantile(Std_iHH, 0.01), q2 = quantile(Std_iHH, 0.99))
+  plot(make_graph(rsb,i))
+}
+
+```
+
+---
+
+OMNI
+
+---
+
+```{r omni}
+for( i in 1:22){
+  POP1 = "OMNI"
+  rsb=data.frame()
+	for( POP2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
+  		print(POP2)  
+    		if(file.exists(file = paste0(POP1,"chr",i,".ihh")) & file.exists(file = paste0(POP2,"chr",i,".ihh"))){
+      			rsb=rbind(rsb, get_rsb(pop1=POP1, pop2=POP2, chr=i))
+      		}  
+  		#print(names(rsb))
+  		#print(head(rsb))
+ 		#manhattan(x = rsb[!is.na(rsb$Std_iHH),], chr = "CHR", bp = "POSITION", p = "Pvalue", main=paste(POP1, POP2)) 		
+  		#print(as.data.frame(s))		
+	}
+  s = rsb %>% group_by(POP1, POP2) %>% summarise(m=mean(Std_iHH), sd(Std_iHH), min(Std_iHH), max(Std_iHH), q1 = quantile(Std_iHH, 0.01), q2 = quantile(Std_iHH, 0.99))
+  plot(make_graph(rsb,i))
+}
+```
