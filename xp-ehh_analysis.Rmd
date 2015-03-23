@@ -22,7 +22,7 @@ s=data.frame()
 make_graph=function(rsb,i){
   #ihs=subset(rsb, POP1 == rsb$POP2)
   #ggplot(data = ihs, aes(x=POSITION, y=iHS), ylim=c(min(ihs$iHS -0.5), max(ihs$iHS + 0.5)))  + geom_point(shape = 16, colour= alpha("black", 1/5)) + facet_wrap(~CHR, scales = "free_x")  + geom_hline(aes(yintercept= q1, colour ="quantile"), data=s,)  + geom_hline(aes(yintercept= q2, colour ="quantile"), data=s)  +geom_hline(aes(yintercept= m, colour="mean"), data=s) + scale_colour_manual("",breaks=c("mean","quantile"),values=c("blue","red")) + scale_x_continuous( xlab("Chromosome Position (Mbp)")) + ylab("iHS") + ggtitle(paste0(POP," iHS by Chromosome")) + theme( plot.background= element_rect(colour="black",fill=NA), legend.position= c(0.75, 0.12)) + theme_bw()
-p = ggplot(data = rsb, aes(x=POSITION, y=Std_iHH), ylim=c(min(rsb$Std_iHH -0.5), max(rsb$Std_iHH + 0.5)))  + geom_point(shape = 16, colour= alpha("black", 1/5)) + facet_grid(POP2~POP1) + geom_hline(aes(yintercept= -3.29, colour ="Threshold"))  + geom_hline(aes(yintercept= 3.29, colour ="Threshold"))  + scale_colour_manual("",breaks=c("Threshold","PPARGC1A Rsb","PPARGC1A iHS"),values=c(alpha("cyan",1/5), alpha("red",1/5),"blue")) + xlab(paste0("Chromosome ", i, " Position (Mbp)")) + ylab("Rsb/iHS") + ggtitle("Rsb and iHS (Genetic)") #+geom_point(data=ihs, aes(y = Std_iHH, x=POSITION,colour="PPARGC1A iHS"))
+p = ggplot(data = rsb, aes(x=POSITION, y=Std_iHH), ylim=c(min(rsb$Std_iHH -0.5), max(rsb$Std_iHH + 0.5)))  + geom_point(shape = 16, colour= alpha("black", 1/5)) + facet_grid(POP2~ POP1) + geom_hline(aes(yintercept= -3.29, colour ="Threshold"))  + geom_hline(aes(yintercept= 3.29, colour ="Threshold")) + xlab(paste0("Chromosome ", i, " Position (Mbp)")) + ylab("Rsb/iHS") + ggtitle("Rsb and iHS (Genetic)") #+geom_point(data=ihs, aes(y = Std_iHH, x=POSITION,colour="PPARGC1A iHS"))
 }
 #setwd("~/MurrayXsan/Bioinformatics/working_dir/extract/ihh_ihs/")
 
@@ -57,21 +57,32 @@ get_ihs = function(pop1,chr){
 #rsb=rbind(rsb, get_rsb(pop1=POP1, pop2=POP2))
 ```
 
+---
+
+AXIOM
+
+---
+
 ```{r axiom}
 for( i in 1:22){
-	POP1 <- "AXIOM"
+	pop1 <- "AXIOM"
   rsb=data.frame()
-	for( POP2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
-  		print(POP2)  
-    		if(file.exists(file = paste0(POP1,"chr",i,".ihh")) & file.exists(file = paste0(POP2,"chr",i,".ihh"))){
-      			rsb=rbind(rsb, get_rsb(pop1=POP1, pop2=POP2, chr=i))
+	for( pop2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
+  		print(pop2)  
+    		if(file.exists(file = paste0(pop1,"chr",i,".ihh")) & file.exists(file = paste0(pop2,"chr",i,".ihh"))){
+      			rsb=rbind(rsb, get_rsb(pop1=pop1, pop2=pop2, chr=i))
       		}
 	}
-  s = rsb %>% group_by(POP1, POP2) %>% summarise(m=mean(Std_iHH), sd(Std_iHH), min(Std_iHH), max(Std_iHH), q1 = quantile(Std_iHH, 0.01), q2 = quantile(Std_iHH, 0.99))
-  plot(make_graph(rsb,i))
+  #s = rsb %>% group_by(POP1, POP2) %>% summarise(m=mean(Std_iHH), sd(Std_iHH), min(Std_iHH), max(Std_iHH), q1 = quantile(Std_iHH, 0.01), q2 = quantile(Std_iHH, 0.99))
+  print(i)
+  if(length(rsb) != 0){
+    s = rsb %>% group_by(POP1, POP2) %>% summarise(m=mean(Std_iHH), sd(Std_iHH), min(Std_iHH), max(Std_iHH), q1 = quantile(Std_iHH, 0.01), q2 = quantile(Std_iHH, 0.99))
+    print(as.data.frame(s))
+    plot(make_graph(rsb,i))
+  }
 }
-
 ```
+
 
 ---
 
@@ -79,21 +90,26 @@ OMNI
 
 ---
 
+
 ```{r omni}
 for( i in 1:22){
-  POP1 = "OMNI"
+  pop1 = "OMNI"
   rsb=data.frame()
-	for( POP2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
-  		print(POP2)  
-    		if(file.exists(file = paste0(POP1,"chr",i,".ihh")) & file.exists(file = paste0(POP2,"chr",i,".ihh"))){
-      			rsb=rbind(rsb, get_rsb(pop1=POP1, pop2=POP2, chr=i))
+	for( pop2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
+  		print(pop2)  
+    		if(file.exists(file = paste0(pop1,"chr",i,".ihh")) & file.exists(file = paste0(pop2,"chr",i,".ihh"))){
+      			rsb=rbind(rsb, get_rsb(pop1=pop1, pop2=pop2, chr=i))
       		}  
   		#print(names(rsb))
   		#print(head(rsb))
  		#manhattan(x = rsb[!is.na(rsb$Std_iHH),], chr = "CHR", bp = "POSITION", p = "Pvalue", main=paste(POP1, POP2)) 		
   		#print(as.data.frame(s))		
 	}
-  s = rsb %>% group_by(POP1, POP2) %>% summarise(m=mean(Std_iHH), sd(Std_iHH), min(Std_iHH), max(Std_iHH), q1 = quantile(Std_iHH, 0.01), q2 = quantile(Std_iHH, 0.99))
-  plot(make_graph(rsb,i))
+  #s = rsb %>% group_by(POP1, POP2) %>% summarise(m=mean(Std_iHH), sd(Std_iHH), min(Std_iHH), max(Std_iHH), q1 = quantile(Std_iHH, 0.01), q2 = quantile(Std_iHH, 0.99))
+  if(length(rsb) != 0){
+    s = rsb %>% group_by(POP1, POP2) %>% summarise(m=mean(Std_iHH), sd(Std_iHH), min(Std_iHH), max(Std_iHH), q1 = quantile(Std_iHH, 0.01), q2 = quantile(Std_iHH, 0.99))
+    print(as.data.frame(s))
+    plot(make_graph(rsb,i))
+  }
 }
 ```
