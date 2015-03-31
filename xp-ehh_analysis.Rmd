@@ -63,7 +63,7 @@ AXIOM
 
 ---
 
-```{r axiom}
+```{r axiom, echo=FALSE, cache=TRUE}
 for( i in 1:22){
 	pop1 <- "AXIOM"
   rsb=data.frame()
@@ -91,7 +91,7 @@ OMNI
 ---
 
 
-```{r omni}
+```{r omni, echo=FALSE, cache=TRUE}
 for( i in 1:22){
   pop1 = "OMNI"
   rsb=data.frame()
