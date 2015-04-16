@@ -16,13 +16,14 @@ library(knitr)
 opts_knit$set(root.dir="/run/user//1001//gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/ihh_ihs/")
 #setwd("/run/user//1001//gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/ihh_ihs/")
 
+gaps = read.table("~/GRCh37_gaps_mod.txt", header=TRUE, stringsAsFactors = FALSE)
 
 rsb=data.frame()
 s=data.frame()
 make_graph=function(rsb,i){
   #ihs=subset(rsb, POP1 == rsb$POP2)
   #ggplot(data = ihs, aes(x=POSITION, y=iHS), ylim=c(min(ihs$iHS -0.5), max(ihs$iHS + 0.5)))  + geom_point(shape = 16, colour= alpha("black", 1/5)) + facet_wrap(~CHR, scales = "free_x")  + geom_hline(aes(yintercept= q1, colour ="quantile"), data=s,)  + geom_hline(aes(yintercept= q2, colour ="quantile"), data=s)  +geom_hline(aes(yintercept= m, colour="mean"), data=s) + scale_colour_manual("",breaks=c("mean","quantile"),values=c("blue","red")) + scale_x_continuous( xlab("Chromosome Position (Mbp)")) + ylab("iHS") + ggtitle(paste0(POP," iHS by Chromosome")) + theme( plot.background= element_rect(colour="black",fill=NA), legend.position= c(0.75, 0.12)) + theme_bw()
-p = ggplot(data = rsb, aes(x=POSITION, y=Std_iHH), ylim=c(min(rsb$Std_iHH -0.5), max(rsb$Std_iHH + 0.5)))  + geom_point(shape = 16, colour= alpha("black", 1/5)) + facet_grid(POP2~ POP1) + geom_hline(aes(yintercept= -3.29, colour ="Threshold"))  + geom_hline(aes(yintercept= 3.29, colour ="Threshold")) + xlab(paste0("Chromosome ", i, " Position (Mbp)")) + ylab("Rsb/iHS") + ggtitle("Rsb and iHS (Genetic)") #+geom_point(data=ihs, aes(y = Std_iHH, x=POSITION,colour="PPARGC1A iHS"))
+p = ggplot(data = rsb, aes(x=POSITION, y=Std_iHH), ylim=c(min(rsb$Std_iHH -0.5), max(rsb$Std_iHH + 0.5)))  + geom_point(shape = 16, colour= alpha("black", 1/5)) + facet_grid(POP2~ POP1) + geom_hline(aes(yintercept= -3.29, colour ="Threshold"))  + geom_hline(aes(yintercept= 3.29, colour ="Threshold")) + xlab(paste0("Chromosome ", i, " Position (Mbp)")) + ylab("Rsb/iHS") + ggtitle("Rsb and iHS (Genetic)") + geom_segment(data= subset(gaps, gaps$chrom == i),aes(x = chromStart, xend=chromEnd, y=min(rsb$Std_iHH-0.5), yend=min(rsb$Std_iHH-0.5), color="gap"),size=4)#+geom_point(data=ihs, aes(y = Std_iHH, x=POSITION,colour="PPARGC1A iHS"))
 }
 #setwd("~/MurrayXsan/Bioinformatics/working_dir/extract/ihh_ihs/")
 
