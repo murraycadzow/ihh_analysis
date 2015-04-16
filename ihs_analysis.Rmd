@@ -12,6 +12,7 @@ library(scales)
 library(rehh)
 library(qqman)
 library(knitr)
+library(readr)
 opts_knit$set(root.dir="/run/user//1001//gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/ihh_ihs/")
 POP=""
 ihs=data.frame()
@@ -40,7 +41,13 @@ ihs_stats=function(POP){
   s = ihs %>% group_by(CHR) %>% summarise(m=mean(iHS), sd(iHS), min(iHS), max(iHS), q1 = quantile(iHS, 0.01), q2 = quantile(iHS, 0.99))
   print(as.data.frame(s))
   #plot(make_graph(TD,s))
+  return(ihs)
   }
+
+df=data.frame()
+for(i in 1:22){
+  df=rbind(df,read_delim(file=paste0("/run/user//1001/gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/fixed_vcf/snpEff_classic/rs_genes",i,".txt"), delim="\t", col_names=c("chr","start","end","rs_ids","gene")) )
+}
 ```
 
 
@@ -51,7 +58,21 @@ AXIOM
 ---
 
 ```{r axiom, echo=FALSE, cache=TRUE}
-ihs_stats(POP="AXIOM")
+axiom<-ihs_stats(POP="AXIOM")
+ann = merge(axiom, df, by.x=c("CHR","POSITION"), by.y=c("chr", "end"), all.x = TRUE, sort = FALSE)
+
+#ihs pos == df end pos
+ann1 = ann %>% arrange(desc(abs(iHS)))
+ann1$rank = as.numeric(rownames(ann1))
+ann2=na.omit(ann1)
+
+genes=c("ABCG2", "SLC2A9", "PPARGC1A")
+ann1 %>% filter(gene %in% genes) %>% group_by(gene) %>% summarise(min(rank), quantile(rank, 0.25),median(rank), mean(rank),quantile(rank, 0.75), max(rank))
+a<- ann2 %>%  group_by(gene) %>% summarise(min_rank=min(rank), firstQu=quantile(rank, 0.25),med=median(rank), me=mean(rank), thirdQu=quantile(rank, 0.75), max_rank=max(rank), len=length(rank), v=var(rank)) %>% arrange(me, v)
+
+ann1 %>% filter(gene %in% genes) %>% group_by(gene) %>% ggplot(. , aes(x=gene, y=rank)) + geom_boxplot() +theme_bw()
+
+rm(axiom)
 ```
 
 ---
@@ -61,7 +82,8 @@ OMNI
 ---
 
 ```{r omni, echo=FALSE, cache=TRUE}
-ihs_stats(POP="OMNI")
+omni<-ihs_stats(POP="OMNI")
+rm(omni)
 ```
 
 
@@ -72,7 +94,8 @@ CEU
 ---
 
 ```{r ceu, echo=FALSE, cache=TRUE}
-ihs_stats(POP="CEU")
+ceu<-ihs_stats(POP="CEU")
+rm(ceu)
 ```
 
 ---
@@ -82,7 +105,8 @@ CHB
 ---
 
 ```{r chb, echo=FALSE, cache=TRUE}
-ihs_stats(POP="CHB")
+chb<-ihs_stats(POP="CHB")
+rm(chb)
 ```
 
 ---
@@ -92,7 +116,8 @@ CHS
 ---
 
 ```{r chs, echo=FALSE, cache=TRUE}
-ihs_stats(POP="CHS")
+chs<-ihs_stats(POP="CHS")
+rm(chs)
 ```
 
 ---
@@ -102,7 +127,8 @@ GBR
 ---
 
 ```{r gbr, echo=FALSE, cache=TRUE}
-ihs_stats(POP="GBR")
+gbr<-ihs_stats(POP="GBR")
+rm(gbr)
 ```
 
 ---
@@ -112,4 +138,6 @@ YRI
 ---
 
 ```{r yri, echo=FALSE, cache=TRUE}
-ihs_stats(POP="YRI")
+yri<-ihs_stats(POP="YRI")
+rm(yri)
+```
