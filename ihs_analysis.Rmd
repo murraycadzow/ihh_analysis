@@ -26,15 +26,23 @@ make_graph=function(ihs,s){
 #for( POP in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
 #  print(POP)
 ihs_stats=function(POP){  
-  ihh=data.frame()
-  for( i in 1:22){
-    if(file.exists(file = paste0(POP,"chr",i,".ihh"))){
-      ihh=rbind(ihh,read.table(file = paste0(POP,"chr",i,".ihh"), header=TRUE))
+  if(!file.exists(paste0(POP,"_ihs.RData"))){
+    ihh=data.frame()
+    for( i in 1:22){
+      if(file.exists(file = paste0(POP,"chr",i,".ihh"))){
+        ihh=rbind(ihh,read.table(file = paste0(POP,"chr",i,".ihh"), header=TRUE))
+      } else {
+        print(paste0(POP,"chr",i,".ihh is missing"))
       }
     }
-  ihs = ihh2ihs(ihh)
-  ihs = ihs$res.ihs
-  ihs = ihs[!is.na(ihs$iHS),]
+    
+    ihs = ihh2ihs(ihh)
+    ihs = ihs$res.ihs
+    ihs = ihs[!is.na(ihs$iHS),]
+    write.table(ihs, file=paste0(POP,"_ihs.txt"), row.names=FALSE, quote=FALSE,col.names = TRUE, sep="\t")
+  }else{
+    ihs = read_delim(file=paste0(POP,"_ihs.txt"), col_names=TRUE, delim="\t")
+  }
   #print(names(ihs))
   #print(head(ihs))
   manhattan(x = ihs[!is.na(ihs$iHS),], chr = "CHR", bp = "POSITION", p = "Pvalue", main=POP)
@@ -48,6 +56,54 @@ df=data.frame()
 for(i in 1:22){
   df=rbind(df,read_delim(file=paste0("/run/user//1001/gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/fixed_vcf/snpEff_classic/rs_genes",i,".txt"), delim="\t", col_names=c("chr","start","end","rs_ids","gene")) )
 }
+
+annotate=function(ihs){
+  #ihs pos == df end pos
+  #ann = merge(ihs, df, by.x=c("CHR","POSITION"), by.y=c("chr", "end"), all.x = TRUE, sort = FALSE)
+  ann = left_join(ihs, df, by=c("CHR" ="chr", "POSITION"= "end"), sort = FALSE)
+
+  ann1 = ann %>% arrange(desc(abs(iHS)))
+  ann1$rank = as.numeric(rownames(ann1))
+  
+  genes=c("ABCG2", "SLC2A9", "PPARGC1A","PDZK1","GCKR","RREB1","SLC17A3","SLC16A9", "SLC22A11","SLC22A12", "INHBE")
+  plot(ann1 %>% filter(gene %in% genes) %>% group_by(gene) %>% ggplot(. , aes(x=gene, y=rank)) + 
+         geom_boxplot() + facet_wrap(~gene, scales = "free_x")+theme_bw() + ggtitle("Old Kottgen Genes") )
+  
+  genes_new=c("TRIM46", "INHBB", "ORC4L", "SFMBT1","TMEM171", 
+              "VEGFA","MLXIPL","PRKAG2","STC1","HNF4G","ASAH2", 
+              "LTBP3", "PTPN11", "NRG4", "IGF1R", "NFAT5", "MAF",
+              "HLF", "BCAS3", "QRICH2")
+  plot(ann1 %>% filter(gene %in% genes_new) %>% group_by(gene) %>% ggplot(. , aes(x=gene, y=rank)) + 
+         geom_boxplot() + facet_wrap(~gene, scales = "free_x")+theme_bw() +ggtitle("New Kottgen Genes") )
+  print("rank statistics by gene")
+  print(as.data.frame(
+    ann1 %>% 
+      filter(gene %in% c(genes, genes_new)) %>% 
+      group_by(gene) %>% 
+      summarise(min=min(rank), 
+                firstQ=quantile(rank, 0.25),
+                median=median(rank), 
+                mean=mean(rank),
+                thirdQ=quantile(rank, 0.75), 
+                max=max(rank),
+                numSnps=length(rank)
+      )
+  ))
+  a<- ann1 %>%  
+  group_by(gene) %>% 
+  summarise(min_rank=min(rank),
+            firstQu=quantile(rank, 0.25),
+            med=median(rank), 
+            me=mean(rank), 
+            thirdQu=quantile(rank, 0.75), 
+            max_rank=max(rank), 
+            len=length(rank), 
+            v=var(rank)
+            ) %>% 
+  arrange(me, v)
+  print(head(a, n=20))
+  return(ann1)
+}
 ```
 
 
@@ -57,22 +113,36 @@ AXIOM
 
 ---
 
-```{r axiom, echo=FALSE, cache=TRUE}
+```{r axiom, echo=FALSE, cache=FALSE}
 axiom<-ihs_stats(POP="AXIOM")
-ann = merge(axiom, df, by.x=c("CHR","POSITION"), by.y=c("chr", "end"), all.x = TRUE, sort = FALSE)
-
-#ihs pos == df end pos
-ann1 = ann %>% arrange(desc(abs(iHS)))
-ann1$rank = as.numeric(rownames(ann1))
-ann2=na.omit(ann1)
+ann1 = annotate(axiom)
 
 genes=c("ABCG2", "SLC2A9", "PPARGC1A")
-ann1 %>% filter(gene %in% genes) %>% group_by(gene) %>% summarise(min(rank), quantile(rank, 0.25),median(rank), mean(rank),quantile(rank, 0.75), max(rank))
-a<- ann2 %>%  group_by(gene) %>% summarise(min_rank=min(rank), firstQu=quantile(rank, 0.25),med=median(rank), me=mean(rank), thirdQu=quantile(rank, 0.75), max_rank=max(rank), len=length(rank), v=var(rank)) %>% arrange(me, v)
+# ann1 %>% 
+#   filter(gene %in% genes) %>% 
+#   group_by(gene) %>% 
+#   summarise(min(rank), 
+#             quantile(rank, 0.25),
+#             median(rank), 
+#             mean(rank),
+#             quantile(rank, 0.75), 
+#             max(rank)
+#             )
 
-ann1 %>% filter(gene %in% genes) %>% group_by(gene) %>% ggplot(. , aes(x=gene, y=rank)) + geom_boxplot() +theme_bw()
-
-rm(axiom)
+# a<- ann1 %>%  
+#   group_by(gene) %>% 
+#   summarise(min_rank=min(rank),
+#             firstQu=quantile(rank, 0.25),
+#             med=median(rank), 
+#             me=mean(rank), 
+#             thirdQu=quantile(rank, 0.75), 
+#             max_rank=max(rank), 
+#             len=length(rank), 
+#             v=var(rank)
+#             ) %>% 
+#   arrange(me, v)
+# print(head(a, n=20))
+rm(axiom, ann1)
 ```
 
 ---
@@ -81,9 +151,12 @@ OMNI
 
 ---
 
-```{r omni, echo=FALSE, cache=TRUE}
+```{r omni, echo=FALSE, cache=FALSE}
 omni<-ihs_stats(POP="OMNI")
-rm(omni)
+ann1 = annotate(omni)
+
+genes=c("ABCG2", "SLC2A9", "PPARGC1A")
+rm(omni,ann1)
 ```
 
 
@@ -93,8 +166,9 @@ CEU
 
 ---
 
-```{r ceu, echo=FALSE, cache=TRUE}
+```{r ceu, echo=FALSE, cache=FALSE}
 ceu<-ihs_stats(POP="CEU")
+ann1 = annotate(ceu)
 rm(ceu)
 ```
 
@@ -104,8 +178,9 @@ CHB
 
 ---
 
-```{r chb, echo=FALSE, cache=TRUE}
+```{r chb, echo=FALSE, cache=FALSE}
 chb<-ihs_stats(POP="CHB")
+ann1 = annotate(chb)
 rm(chb)
 ```
 
@@ -115,8 +190,9 @@ CHS
 
 ---
 
-```{r chs, echo=FALSE, cache=TRUE}
+```{r chs, echo=FALSE, cache=FALSE}
 chs<-ihs_stats(POP="CHS")
+ann1 = annotate(chs)
 rm(chs)
 ```
 
@@ -126,8 +202,9 @@ GBR
 
 ---
 
-```{r gbr, echo=FALSE, cache=TRUE}
+```{r gbr, echo=FALSE, cache=FALSE}
 gbr<-ihs_stats(POP="GBR")
+ann1 = annotate(gbr)
 rm(gbr)
 ```
 
@@ -137,7 +214,8 @@ YRI
 
 ---
 
-```{r yri, echo=FALSE, cache=TRUE}
+```{r yri, echo=FALSE, cache=FALSE}
 yri<-ihs_stats(POP="YRI")
+ann1 = annotate(yri)
 rm(yri)
 ```
