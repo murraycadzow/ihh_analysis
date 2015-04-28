@@ -13,6 +13,7 @@ library(scales)
 library(rehh)
 library(qqman)
 library(knitr)
+library(readr)
 opts_knit$set(root.dir="/run/user//1001//gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/ihh_ihs/")
 #setwd("/run/user//1001//gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/ihh_ihs/")
 
@@ -55,7 +56,60 @@ get_ihs = function(pop1,chr){
   return(b)
 }
 
-#rsb=rbind(rsb, get_rsb(pop1=POP1, pop2=POP2))
+
+df=data.frame()
+for(i in 1:22){
+  df=rbind(df,read_delim(file=paste0("/run/user//1001/gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/fixed_vcf/snpEff_classic/rs_genes",i,".txt"), delim="\t", col_names=c("chr","start","end","rs_ids","gene")) )
+}
+
+# annotate with gene names, rank and plot kottgen loci with rank distribution
+annotate=function(ihs){
+  #ihs pos == df end pos
+  #ann = merge(ihs, df, by.x=c("CHR","POSITION"), by.y=c("chr", "end"), all.x = TRUE, sort = FALSE)
+  ann = left_join(ihs, df, by=c("CHR" ="chr", "POSITION"= "end"), sort = FALSE)
+
+  ann1 = ann %>% arrange(desc(abs(Std_iHH)))
+  ann1$rank = as.numeric(rownames(ann1))
+  
+  genes=c("ABCG2", "SLC2A9", "PPARGC1A","PDZK1","GCKR","RREB1","SLC17A3","SLC16A9", "SLC22A11","SLC22A12", "INHBE")
+  #plot(ann1 %>% filter(gene %in% genes) %>% group_by(gene) %>% ggplot(. , aes(x=gene, y=rank)) + 
+  #       geom_boxplot() + facet_wrap(~gene, scales = "free_x")+theme_bw() + ggtitle("Old Kottgen Genes") )
+  
+  genes_new=c("TRIM46", "INHBB", "ORC4L", "SFMBT1","TMEM171", 
+              "VEGFA","MLXIPL","PRKAG2","STC1","HNF4G","ASAH2", 
+              "LTBP3", "PTPN11", "NRG4", "IGF1R", "NFAT5", "MAF",
+              "HLF", "BCAS3", "QRICH2")
+  #plot(ann1 %>% filter(gene %in% genes_new) %>% group_by(gene) %>% ggplot(. , aes(x=gene, y=rank)) + 
+  #       geom_boxplot() + facet_wrap(~gene, scales = "free_x")+theme_bw() +ggtitle("New Kottgen Genes") )
+  print("rank statistics by gene")
+  print(as.data.frame(
+    ann1 %>% 
+      filter(gene %in% c(genes, genes_new)) %>% 
+      group_by(gene) %>% 
+      summarise(min=min(rank), 
+                firstQ=quantile(rank, 0.25),
+                median=median(rank), 
+                mean=mean(rank),
+                thirdQ=quantile(rank, 0.75), 
+                max=max(rank),
+                numSnps=length(rank)
+      )
+  ))
+  a<- ann1 %>%  
+  group_by(gene) %>% 
+  summarise(min_rank=min(rank),
+            firstQu=quantile(rank, 0.25),
+            med=median(rank), 
+            me=mean(rank), 
+            thirdQu=quantile(rank, 0.75), 
+            max_rank=max(rank), 
+            len=length(rank), 
+            v=var(rank)
+            ) %>% 
+  arrange(me, v)
+  print(head(a, n=20))
+  return(ann1)
+}
 ```
 
 ---
@@ -81,6 +135,9 @@ for( i in 1:22){
     print(as.data.frame(s))
     plot(make_graph(rsb,i))
   }
+}
+for( pop2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
+annotate(as.data.frame(rsb %>% filter(pop2 == POP2)))
 }
 ```
 
@@ -112,5 +169,8 @@ for( i in 1:22){
     print(as.data.frame(s))
     plot(make_graph(rsb,i))
   }
+}
+for( pop2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
+annotate(as.data.frame(rsb %>% filter(pop2 == POP2)))
 }
 ```
