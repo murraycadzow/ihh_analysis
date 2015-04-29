@@ -7,6 +7,7 @@ output: html_document
 
 
 ```{r, fig.height=9, fig.width=12}
+library(data.table)
 library(dplyr)
 library(ggplot2)
 library(scales)
@@ -24,7 +25,17 @@ s=data.frame()
 make_graph=function(rsb,i){
   #ihs=subset(rsb, POP1 == rsb$POP2)
   #ggplot(data = ihs, aes(x=POSITION, y=iHS), ylim=c(min(ihs$iHS -0.5), max(ihs$iHS + 0.5)))  + geom_point(shape = 16, colour= alpha("black", 1/5)) + facet_wrap(~CHR, scales = "free_x")  + geom_hline(aes(yintercept= q1, colour ="quantile"), data=s,)  + geom_hline(aes(yintercept= q2, colour ="quantile"), data=s)  +geom_hline(aes(yintercept= m, colour="mean"), data=s) + scale_colour_manual("",breaks=c("mean","quantile"),values=c("blue","red")) + scale_x_continuous( xlab("Chromosome Position (Mbp)")) + ylab("iHS") + ggtitle(paste0(POP," iHS by Chromosome")) + theme( plot.background= element_rect(colour="black",fill=NA), legend.position= c(0.75, 0.12)) + theme_bw()
-p = ggplot(data = rsb, aes(x=POSITION, y=Std_iHH), ylim=c(min(rsb$Std_iHH -0.5), max(rsb$Std_iHH + 0.5)))  + geom_point(shape = 16, colour= alpha("black", 1/5)) + facet_grid(POP2~ POP1) + geom_hline(aes(yintercept= -3.29, colour ="Threshold"))  + geom_hline(aes(yintercept= 3.29, colour ="Threshold")) + xlab(paste0("Chromosome ", i, " Position (Mbp)")) + ylab("Rsb/iHS") + ggtitle("Rsb and iHS (Genetic)") + geom_segment(data= subset(gaps, gaps$chrom == i),aes(x = chromStart, xend=chromEnd, y=min(rsb$Std_iHH-0.5), yend=min(rsb$Std_iHH-0.5), color="gap"),size=4)#+geom_point(data=ihs, aes(y = Std_iHH, x=POSITION,colour="PPARGC1A iHS"))
+p = ggplot(data = rsb, aes(x=POSITION, y=Std_iHH), 
+           ylim=c(min(rsb$Std_iHH -0.5), max(rsb$Std_iHH + 0.5)))  +
+  geom_point(shape = 16, colour= alpha("black", 1/5)) + 
+  facet_grid(POP2~ POP1) + 
+  geom_hline(aes(yintercept= -3.29, colour ="Threshold"))  + 
+  geom_hline(aes(yintercept= 3.29, colour ="Threshold")) + 
+  xlab(paste0("Chromosome ", i, " Position (Mbp)")) + 
+  ylab("Rsb/iHS") + ggtitle("Rsb and iHS (Genetic)") + 
+  geom_segment(data= subset(gaps, gaps$chrom == i),
+               aes(x = chromStart, xend=chromEnd, y=min(rsb$Std_iHH-0.5), 
+                   yend=min(rsb$Std_iHH-0.5), color="gap"),size=4)#+geom_point(data=ihs, aes(y = Std_iHH, x=POSITION,colour="PPARGC1A iHS"))
 }
 #setwd("~/MurrayXsan/Bioinformatics/working_dir/extract/ihh_ihs/")
 
@@ -32,6 +43,7 @@ p = ggplot(data = rsb, aes(x=POSITION, y=Std_iHH), ylim=c(min(rsb$Std_iHH -0.5),
 get_rsb = function(pop1, pop2, chr ){
 	if(pop1 != pop2){
   combined= merge(x=read.table(paste0(pop1,"chr",chr,".ihh")), y=read.table(paste0(pop2,"chr",chr,".ihh")), by="POSITION")
+
   a= ies2rsb(combined[,c("CHR.x","POSITION","FREQ_a.x","IHHa.x","IHHd.x","IES.x")], combined[,c("CHR.y","POSITION","FREQ_a.y","IHHa.y","IHHd.y","IES.y")],
              popname1=pop1, popname2=pop2, method="bilateral")
   b=a$res.rsb[!(is.na(a$res.rsb[3])),]
@@ -57,33 +69,58 @@ get_ihs = function(pop1,chr){
 }
 
 
-df=data.frame()
+df=data.table::data.table()
 for(i in 1:22){
-  df=rbind(df,read_delim(file=paste0("/run/user//1001/gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/fixed_vcf/snpEff_classic/rs_genes",i,".txt"), delim="\t", col_names=c("chr","start","end","rs_ids","gene")) )
+  df=rbindlist(list(df,read_delim(file=paste0("/run/user//1001/gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/fixed_vcf/snpEff_classic/rs_genes",i,".txt"), delim="\t", col_names=c("CHR","start","POSITION","rs_ids","gene"))) )
 }
 
 # annotate with gene names, rank and plot kottgen loci with rank distribution
 annotate=function(ihs){
   #ihs pos == df end pos
   #ann = merge(ihs, df, by.x=c("CHR","POSITION"), by.y=c("chr", "end"), all.x = TRUE, sort = FALSE)
-  ann = left_join(ihs, df, by=c("CHR" ="chr", "POSITION"= "end"), sort = FALSE)
+  ann1 = dplyr::left_join(ihs, df, by=c("CHR", "POSITION"), sort = FALSE)
+  
+   ann1 = ann1 %>% arrange(desc(abs(Std_iHH)))
+   ann1$rank = as.numeric(row.names(ann1))
+  
+  
+  
+  print("rank statistics by gene")
+  
+  a<- ann1 %>%  
+    group_by(gene) %>% 
+    summarise(min_rank=min(rank),
+              firstQu=quantile(rank, 0.25),
+              med=median(rank), 
+              me=mean(rank), 
+              thirdQu=quantile(rank, 0.75), 
+              max_rank=max(rank), 
+              len=length(rank), 
+              v=var(rank)
+    ) %>% 
+    arrange(me, v)
+  print(head(a, n=20))
+  return(ann1)
+}
 
-  ann1 = ann %>% arrange(desc(abs(Std_iHH)))
-  ann1$rank = as.numeric(rownames(ann1))
-  
+kottgen = function(ann){
+  #old genes
   genes=c("ABCG2", "SLC2A9", "PPARGC1A","PDZK1","GCKR","RREB1","SLC17A3","SLC16A9", "SLC22A11","SLC22A12", "INHBE")
-  #plot(ann1 %>% filter(gene %in% genes) %>% group_by(gene) %>% ggplot(. , aes(x=gene, y=rank)) + 
-  #       geom_boxplot() + facet_wrap(~gene, scales = "free_x")+theme_bw() + ggtitle("Old Kottgen Genes") )
-  
+  #new genes
   genes_new=c("TRIM46", "INHBB", "ORC4L", "SFMBT1","TMEM171", 
               "VEGFA","MLXIPL","PRKAG2","STC1","HNF4G","ASAH2", 
               "LTBP3", "PTPN11", "NRG4", "IGF1R", "NFAT5", "MAF",
               "HLF", "BCAS3", "QRICH2")
-  #plot(ann1 %>% filter(gene %in% genes_new) %>% group_by(gene) %>% ggplot(. , aes(x=gene, y=rank)) + 
-  #       geom_boxplot() + facet_wrap(~gene, scales = "free_x")+theme_bw() +ggtitle("New Kottgen Genes") )
-  print("rank statistics by gene")
+  #boxplot old genes ranks
+  plot(ann %>% filter(gene %in% genes) %>% group_by(gene) %>% ggplot(. , aes(x=gene, y=rank)) + 
+         geom_boxplot() + facet_wrap(~gene, scales = "free_x")+theme_bw() + ggtitle("Old Kottgen Genes") )
+  #boxplot new genes ranks
+  plot(ann %>% filter(gene %in% genes_new) %>% group_by(gene) %>% ggplot(. , aes(x=gene, y=rank)) + 
+         geom_boxplot() + facet_wrap(~gene, scales = "free_x")+theme_bw() +ggtitle("New Kottgen Genes") )
+  
+  #print out results for all kottgen genes
   print(as.data.frame(
-    ann1 %>% 
+    ann %>% 
       filter(gene %in% c(genes, genes_new)) %>% 
       group_by(gene) %>% 
       summarise(min=min(rank), 
@@ -95,20 +132,6 @@ annotate=function(ihs){
                 numSnps=length(rank)
       )
   ))
-  a<- ann1 %>%  
-  group_by(gene) %>% 
-  summarise(min_rank=min(rank),
-            firstQu=quantile(rank, 0.25),
-            med=median(rank), 
-            me=mean(rank), 
-            thirdQu=quantile(rank, 0.75), 
-            max_rank=max(rank), 
-            len=length(rank), 
-            v=var(rank)
-            ) %>% 
-  arrange(me, v)
-  print(head(a, n=20))
-  return(ann1)
 }
 ```
 
@@ -118,16 +141,21 @@ AXIOM
 
 ---
 
-```{r axiom, echo=FALSE, cache=TRUE}
+```{r axiom, echo=FALSE, cache=TRUE, message=FALSE}
 for( i in 1:22){
 	pop1 <- "AXIOM"
   rsb=data.frame()
-	for( pop2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
-  		print(pop2)  
-    		if(file.exists(file = paste0(pop1,"chr",i,".ihh")) & file.exists(file = paste0(pop2,"chr",i,".ihh"))){
-      			rsb=rbind(rsb, get_rsb(pop1=pop1, pop2=pop2, chr=i))
-      		}
-	}
+	if(file.exists(file=paste0(pop1,i,"_rsb.txt"))){
+    rsb=read_delim(file=paste0(pop1,i,"_rsb.txt"), delim="\t", col_names=TRUE)
+  }else{
+    for( pop2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
+      print(pop2)  
+      if(file.exists(file = paste0(pop1,"chr",i,".ihh")) & file.exists(file = paste0(pop2,"chr",i,".ihh"))){
+        rsb=rbind(rsb, get_rsb(pop1=pop1, pop2=pop2, chr=i))
+      }
+    }
+    write.table(rsb, file=paste0(pop1,i,"_rsb.txt"), row.names=FALSE, col.names=TRUE, quote=FALSE, sep="\t")
+  }
   #s = rsb %>% group_by(POP1, POP2) %>% summarise(m=mean(Std_iHH), sd(Std_iHH), min(Std_iHH), max(Std_iHH), q1 = quantile(Std_iHH, 0.01), q2 = quantile(Std_iHH, 0.99))
   print(i)
   if(length(rsb) != 0){
@@ -136,8 +164,20 @@ for( i in 1:22){
     plot(make_graph(rsb,i))
   }
 }
+```
+
+```{r}
+rsb = data.frame()
+for(i in 1:22){
+  if(file.exists(file=paste0(pop1,i,"_rsb.txt"))){
+    rsb=rbindlist(list(rsb,read_delim(file=paste0(pop1,i,"_rsb.txt"), delim="\t", col_names=TRUE)))
+  }
+}
 for( pop2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
-annotate(as.data.frame(rsb %>% filter(pop2 == POP2)))
+  print(pop2)
+  ann=annotate((rsb %>% filter(pop2 == POP2)))
+  print("Kottgen Genes")
+  kottgen(ann)
 }
 ```
 
@@ -149,20 +189,21 @@ OMNI
 ---
 
 
-```{r omni, echo=FALSE, cache=TRUE}
+```{r omni, echo=FALSE, cache=TRUE, message=FALSE}
 for( i in 1:22){
   pop1 = "OMNI"
   rsb=data.frame()
-	for( pop2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
-  		print(pop2)  
-    		if(file.exists(file = paste0(pop1,"chr",i,".ihh")) & file.exists(file = paste0(pop2,"chr",i,".ihh"))){
-      			rsb=rbind(rsb, get_rsb(pop1=pop1, pop2=pop2, chr=i))
-      		}  
-  		#print(names(rsb))
-  		#print(head(rsb))
- 		#manhattan(x = rsb[!is.na(rsb$Std_iHH),], chr = "CHR", bp = "POSITION", p = "Pvalue", main=paste(POP1, POP2)) 		
-  		#print(as.data.frame(s))		
-	}
+	if(file.exists(file=paste0(pop1,i,"_rsb.txt"))){
+    rsb=read_delim(file=paste0(pop1,i,"_rsb.txt"), delim="\t", col_names=TRUE)
+  }else{
+    for( pop2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
+      print(pop2)  
+      if(file.exists(file = paste0(pop1,"chr",i,".ihh")) & file.exists(file = paste0(pop2,"chr",i,".ihh"))){
+        rsb=rbind(rsb, get_rsb(pop1=pop1, pop2=pop2, chr=i))
+      }
+    }
+    write.table(rsb, file=paste0(pop1,i,"_rsb.txt"), row.names=FALSE, col.names=TRUE, quote=FALSE, sep="\t")
+  }
   #s = rsb %>% group_by(POP1, POP2) %>% summarise(m=mean(Std_iHH), sd(Std_iHH), min(Std_iHH), max(Std_iHH), q1 = quantile(Std_iHH, 0.01), q2 = quantile(Std_iHH, 0.99))
   if(length(rsb) != 0){
     s = rsb %>% group_by(POP1, POP2) %>% summarise(m=mean(Std_iHH), sd(Std_iHH), min(Std_iHH), max(Std_iHH), q1 = quantile(Std_iHH, 0.01), q2 = quantile(Std_iHH, 0.99))
@@ -170,7 +211,19 @@ for( i in 1:22){
     plot(make_graph(rsb,i))
   }
 }
+```
+
+```{r}
+rsb = data.frame()
+for(i in 1:22){
+  if(file.exists(file=paste0(pop1,i,"_rsb.txt"))){
+    rsb=rbindlist(list(rsb,read_delim(file=paste0(pop1,i,"_rsb.txt"), delim="\t", col_names=TRUE)))
+  }
+}
 for( pop2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
-annotate(as.data.frame(rsb %>% filter(pop2 == POP2)))
+  print(pop2)
+  ann=annotate((rsb %>% filter(pop2 == POP2)))
+  print("Kottgen Genes")
+  kottgen(ann)
 }
 ```
