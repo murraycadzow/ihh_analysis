@@ -227,3 +227,48 @@ for( pop2 in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
   kottgen(ann)
 }
 ```
+
+```{r}
+
+pop1="AXIOM"
+rsb=data.table()
+for(i in 1:22){
+rsb=bind_rows(rsb,read_delim(file=paste0(pop1,i,"_rsb.txt"), delim="\t", col_names=TRUE))
+}
+for( pop2 in c("OMNI","CEU","CHB","CHS","GBR","YRI")){
+  
+  plot_manhattan(ihs=rsb %>% filter(POP1 == pop1, POP2 == pop2) ,POP=paste0(pop1," and ", pop2))
+}
+
+pop1="AXIOM"
+rsb=data.table()
+for(i in 1:22){
+  rsb=bind_rows(rsb,read_delim(file=paste0(pop1,i,"_rsb.txt"), delim="\t", col_names=TRUE))
+}
+for( pop2 in c("OMNI","CEU","CHB","CHS","GBR","YRI")){
+  sig = rsb %>% filter(POP1 == pop1, POP2 == pop2, Pvalue > 8) %>% arrange(Pvalue)
+  ann1 = dplyr::left_join(sig, df, by=c("CHR", "POSITION"), sort = FALSE)
+  write.table(ann1, file=paste0(pop1,pop2,"sig_XPEHH.txt"), col.names=TRUE, row.names=FALSE, quote=FALSE, sep="\t")
+}
+
+pop1="OMNI"
+rsb=data.table()
+for(i in 1:22){
+  rsb=bind_rows(rsb,read_delim(file=paste0(pop1,i,"_rsb.txt"), delim="\t", col_names=TRUE))
+}
+for( pop2 in c("AXIOM","CEU","CHB","CHS","GBR","YRI")){
+  
+  plot_manhattan(ihs=rsb %>% filter(POP1 == pop1, POP2 == pop2) ,POP=paste0(pop1," and ", pop2))
+}
+
+pop1="OMNI"
+rsb=data.table()
+for(i in 1:22){
+  rsb=bind_rows(rsb,read_delim(file=paste0(pop1,i,"_rsb.txt"), delim="\t", col_names=TRUE))
+}
+for( pop2 in c("AXIOM","CEU","CHB","CHS","GBR","YRI")){
+  sig = rsb %>% filter(POP1 == pop1, POP2 == pop2, Pvalue > 8) %>% arrange(Pvalue)
+  ann1 = dplyr::left_join(sig, df, by=c("CHR", "POSITION"), sort = FALSE)
+  write.table(ann1, file=paste0(pop1,pop2,"sig_XPEHH.txt"), col.names=TRUE, row.names=FALSE, quote=FALSE, sep="\t")
+}
+```
