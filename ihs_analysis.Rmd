@@ -13,7 +13,7 @@ library(rehh)
 library(qqman)
 library(knitr)
 library(readr)
-opts_knit$set(root.dir="/run/user//1001//gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/ihh_ihs/")
+dir="/run/user//1001//gvfs/smb-share:server=biocldap,share=scratch/merrimanlab/murray/working_dir/extract/ihh_ihs/"
 POP=""
 ihs=data.frame()
 s=data.frame()
@@ -26,11 +26,11 @@ make_graph=function(ihs,s){
 #for( POP in c("AXIOM","OMNI","CEU","CHB","CHS","GBR","YRI")){
 #  print(POP)
 read_ihs=function(POP){  
-  if(!file.exists(paste0(POP,"_ihs.RData"))){
+  if(!file.exists(paste0(dir,POP,"_ihs.RData"))){
     ihh=data.frame()
     for( i in 1:22){
-      if(file.exists(file = paste0(POP,"chr",i,".ihh"))){
-        ihh=rbind(ihh,read.table(file = paste0(POP,"chr",i,".ihh"), header=TRUE))
+      if(file.exists(file = paste0(dir,POP,"chr",i,".ihh"))){
+        ihh=rbind(ihh,read.table(file = paste0(dir,POP,"chr",i,".ihh"), header=TRUE))
       } else {
         print(paste0(POP,"chr",i,".ihh is missing"))
       }
@@ -39,9 +39,9 @@ read_ihs=function(POP){
     ihs = ihh2ihs(ihh)
     ihs = ihs$res.ihs
     ihs = ihs[!is.na(ihs$iHS),]
-    write.table(ihs, file=paste0(POP,"_ihs.txt"), row.names=FALSE, quote=FALSE,col.names = TRUE, sep="\t")
+    write.table(ihs, file=paste0(dir,POP,"_ihs.txt"), row.names=FALSE, quote=FALSE,col.names = TRUE, sep="\t")
   }else{
-    ihs = read_delim(file=paste0(POP,"_ihs.txt"), col_names=TRUE, delim="\t")
+    ihs = read_delim(file=paste0(dir,POP,"_ihs.txt"), col_names=TRUE, delim="\t")
   }
   #print(names(ihs))
   #print(head(ihs))
@@ -87,14 +87,27 @@ annotate=function(ihs){
 
   ann1 = ann %>% arrange(desc(abs(iHS)))
   ann1$rank = as.numeric(rownames(ann1))
+  ann1$rel_rank = as.numeric(rownames(ann1))/NROW(ann1)
   
   genes=c("ABCG2", "SLC2A9", "PPARGC1A","PDZK1","GCKR","RREB1","SLC17A3","SLC16A9", "SLC22A11","SLC22A12", "INHBE")
-  plot(ann1 %>% filter(gene %in% genes) %>% group_by(gene) %>% 
+  print("rank statistics by gene")
+  plot(ann1 %>% filter(gene %in% genes) %>% group_by(gene) %>% mutate(gene_num = paste(gene,length(gene))) %>%
          ggplot(. , aes(x=gene, y=rank), ylim=c(0,6e6)) + 
          geom_boxplot() + 
-         facet_wrap(~gene, scales = "free_x")+
+         geom_jitter() +
+         facet_wrap(~gene_num, scales = "free_x")+
          theme_bw() + 
          ggtitle("Old Kottgen Genes") +
+         theme(axis.text.x=element_blank(),axis.ticks=element_blank())
+       )
+  print("iHS statistics by gene")
+  plot(ann1 %>% filter(gene %in% genes) %>% group_by(gene) %>% mutate(gene_num = paste(gene,length(gene))) %>%
+         ggplot(. , aes(x=gene, y=iHS), ylim=c(0,6e6)) + 
+         geom_boxplot() +
+         geom_jitter() +
+         facet_wrap(~gene_num, scales = "free_x")+
+         theme_bw() + 
+         ggtitle("Old Kottgen Genes iHS") +
          theme(axis.text.x=element_blank(),axis.ticks=element_blank())
        )
   
@@ -102,15 +115,27 @@ annotate=function(ihs){
               "VEGFA","MLXIPL","PRKAG2","STC1","HNF4G","ASAH2", 
               "LTBP3", "PTPN11", "NRG4", "IGF1R", "NFAT5", "MAF",
               "HLF", "BCAS3", "QRICH2")
-  plot(ann1 %>% filter(gene %in% genes_new) %>% group_by(gene) %>% 
+  print("rank statistics by gene")
+  plot(ann1 %>% filter(gene %in% genes_new) %>% group_by(gene) %>% mutate(gene_num = paste(gene,length(gene))) %>%
          ggplot(. , aes(x=gene, y=rank), ylim=c(0,6e6)) + 
          geom_boxplot() + 
-         facet_wrap(~gene, scales = "free_x")+
+         geom_jitter() +
+         facet_wrap(~gene_num, scales = "free_x")+
          theme_bw() +
          ggtitle("New Kottgen Genes") +
          theme(axis.text.x=element_blank(),axis.ticks=element_blank())
        )
-  print("rank statistics by gene")
+  print("iHS statistics by gene")
+  plot(ann1 %>% filter(gene %in% genes_new) %>% group_by(gene) %>% mutate(gene_num = paste(gene,length(gene))) %>%
+         ggplot(. , aes(x=gene, y=iHS), ylim=c(0,6e6)) + 
+         geom_boxplot() + 
+         geom_jitter() +
+         facet_wrap(~gene_num, scales = "free_x")+
+         theme_bw() +
+         ggtitle("New Kottgen Genes iHS") +
+         theme(axis.text.x=element_blank(),axis.ticks=element_blank())
+       )
+  
   print(as.data.frame(
     ann1 %>% 
       filter(gene %in% c(genes, genes_new)) %>% 

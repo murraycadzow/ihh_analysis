@@ -78,7 +78,7 @@ drv = dbDriver("MySQL")
 db = dbConnect(drv, user="murray", host="127.0.0.1", dbname="selection")
 
 dbGetQuery(db, "CREATE TABLE `axiom_rsb`(`chrom` int(31),`chrom_start` int(10),`chrom_end` int(10), `Std_iHH` float, `neglogPvalue` float, `Std_iHH_rank` int(10),`Population1` varchar(20), `Population2` varchar(20), `Test` varchar(20) );")
-for(i in 5:22){
+for(i in 1:22){
 dbGetQuery(db,paste0("load data infile '/home/murraycadzow/AXIOM",i,"_rsb.txt' into table axiom_rsb fields terminated by '\t' lines terminated by '\n' ignore 1 rows;"))
 }
 
