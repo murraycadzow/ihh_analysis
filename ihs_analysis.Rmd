@@ -110,6 +110,13 @@ annotate=function(ihs){
          ggtitle("Old Kottgen Genes iHS") +
          theme(axis.text.x=element_blank(),axis.ticks=element_blank())
        )
+  for(g in genes){
+    print(g)
+    a <- ann1 %>% filter(gene == g) %>% group_by(gene) %>% 
+      mutate(gene_num = paste(gene,length(gene))) %>% select(rank)  
+    ifelse(length(a$rank) > 0 ,print(ks.test(x =a$rank , y = 1:length(ann1[,1]))), print(paste(g,"no data")))
+    rm(a)
+    }
   
   genes_new=c("TRIM46", "INHBB", "ORC4L", "SFMBT1","TMEM171", 
               "VEGFA","MLXIPL","PRKAG2","STC1","HNF4G","ASAH2", 
@@ -135,6 +142,11 @@ annotate=function(ihs){
          ggtitle("New Kottgen Genes iHS") +
          theme(axis.text.x=element_blank(),axis.ticks=element_blank())
        )
+  for(g in genes_new){
+    print(g) ;a <- ann1 %>% filter(gene == g) %>% group_by(gene) %>% 
+      mutate(gene_num = paste(gene,length(gene))) %>% select(rank)
+    ifelse(length(a$rank) > 0 ,print(ks.test(x =a$rank , y = 1:length(ann1[,1]))), print(paste(g,"no data")))
+    rm(a)}
   
   print(as.data.frame(
     ann1 %>% 
@@ -169,20 +181,32 @@ annotate=function(ihs){
 
 ---
 
-AXIOM
+# AXIOM
 
 ---
 
 ```{r axiom, echo=FALSE, cache=FALSE}
 axiom<-read_ihs(POP="AXIOM")
 ann1 = annotate(axiom)
+u_genes = na.omit(unique(ann1$gene))
+b = data.frame(row.names = u_genes)
+i=1
+for(g in (u_genes)){
+  a <- ann1 %>% filter(gene == g) %>% mutate(gene_num = paste(gene,length(gene))) %>% select(iHS)  
+    ifelse(length(a$iHS) > 0 ,b[g,1] <- ks.test(x =a$iHS, pnorm)$p.value, b[g,1] <- -1)
+    if(i %% 100 == 0){
+      print(i)
+    }
+    i = i +1
+}
+
 ihs_stats(ann1)
 rm(axiom, ann1)
 ```
 
 ---
 
-OMNI
+# OMNI
 
 ---
 
@@ -196,7 +220,7 @@ rm(omni,ann1)
 
 ---
 
-CEU
+# CEU
 
 ---
 
@@ -209,7 +233,7 @@ rm(ceu)
 
 ---
 
-CHB
+# CHB
 
 ---
 
@@ -222,7 +246,7 @@ rm(chb)
 
 ---
 
-CHS
+# CHS
 
 ---
 
@@ -235,7 +259,7 @@ rm(chs)
 
 ---
 
-GBR
+# GBR
 
 ---
 
@@ -248,7 +272,7 @@ rm(gbr)
 
 ---
 
-YRI
+# YRI
 
 ---
 
