@@ -10,3 +10,9 @@
 # RStudio files
 .Rproj.user/
 .Rproj.user
+
+*.html
+*.pdf
+ihh_analysis_files/*
+xp-ehh_analysis_files/*
+
